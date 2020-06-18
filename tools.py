@@ -54,10 +54,12 @@ def clean_list(raw_list):
     return clean
 
 
-def group_by_device(devices, matrix):
+def group_by_device(devices, matrix, add_name=True):
     result = []
+    print(f'Grouping by device with device header = {add_name}')
     for device in devices:
-        result.append([device])
+        if add_name:
+            result.append([device])
         for line in matrix:
             if device in line[0]:
                 result.append(line)
@@ -71,6 +73,18 @@ def write_to_excel(file, sheet_name, data):
         for cel_ind, cell in enumerate(line):
             sheet.write(line_ind, cel_ind, cell)
     workbook.save('grp.xls')
+
+
+def get_devices(matrix):
+    result = set()
+    for line in matrix:
+        *device, _ = line[0].split()
+        result.add(' '.join(device))
+    print(f'{len(result)} devices found:')
+    for d in result:
+        print(d)
+    return list(result)
+
 
 
 
