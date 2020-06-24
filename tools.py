@@ -1,6 +1,4 @@
 from os import path
-import xlrd
-# import xlwt
 from openpyxl import Workbook
 
 
@@ -76,10 +74,6 @@ def write_to_excel(file, sheet_name, data):
     book = Workbook(write_only=True)
     book.create_sheet(sheet_name)
     sheet = book[sheet_name]
-    '''for line_ind, line in enumerate(data, 1):
-        for cel_ind, cell in enumerate(line, 1):
-            print(line_ind, cel_ind, cell)
-            sheet.cell(line_ind, cel_ind, cell)'''
     for line in data:
         sheet.append(line)
     book.save(file)
@@ -96,22 +90,23 @@ def get_devices(matrix):
     return list(result)
 
 
-def split_interfaces(matrix):
+def split_interfaces(device_columns: list, matrix):
+    """
+    Splits single list item with device and interface into two list items,
+    assuming that interface is a substring after last space.
+    device_column is a list of indexes - specifies which list items to split
+    """
     result = []
     for line in matrix:
-        print(line)
         new_line = []
         for ind, cell in enumerate(line):
-            print(ind, cell)
-            if ind == 0 or ind == 1:
+            if ind in device_columns:
                 *device, interface = cell.split()
                 new_line.extend([' '.join(device), interface])
-                print('AAA', new_line)
             else:
                 new_line.append(cell)
-        print('new ', new_line)
         result.append(new_line)
-    print(result)
+    return result
 
 
 

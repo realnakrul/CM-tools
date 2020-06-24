@@ -1,4 +1,2 @@
-xlrd
-pandas
-xlwt
+# pandas
 openpyxl
