@@ -48,14 +48,22 @@ def read_sheet(sheet):
     return matrix_list
 
 
-def clean_list(raw_list, header=True):
-    clean = []
+def clean_list(raw_matrix, b_index: int, header=True):
+    """
+    Removes all matrix entries without B device name (Device A open interfaces)
+    :param raw_matrix: Connectivity matrix with Device A open interfaces and
+    header
+    :param b_index: B device column in connectivity matrix
+    :param header: Specifies if connectivity matrix has header in first row
+    :return: Connectivity matrix without header and Device A open interfaces
+    """
+    clean_matrix = []
     if header:
-        _ = raw_list.pop(0)
-    for line in raw_list:
-        if line[1]:
-            clean.append(line)
-    return clean
+        _ = raw_matrix.pop(0)
+    for line in raw_matrix:
+        if line[b_index]:
+            clean_matrix.append(line)
+    return clean_matrix
 
 
 def group_by_device(devices, matrix, add_name=True):
@@ -106,6 +114,46 @@ def split_interfaces(device_columns: list, matrix):
             else:
                 new_line.append(cell)
         result.append(new_line)
+    return result
+
+
+def populate_b(matrix):
+    """
+    Populates B device SFP, patch cord and rack from REVERSE record
+    :param matrix: Clean connectivity matrix in FORWARD and REVERSE
+    (Engineer) format without B SFP, Patch cord and rack
+    :return: Connectivity matrix in FORWARD and REVERSE format with
+    populated B SFP, Patch cord and rack
+    """
+    result = []
+    for a_line in matrix:
+        # ab_line = []
+        a_line_a_name = a_line[0]
+        a_line_a_interface = a_line[1]
+        a_line_b_name = a_line[2]
+        a_line_b_interface = a_line[3]
+        a_line_a_sfp = a_line[4]
+        a_line_a_patch = a_line[5]
+        a_line_a_rack = a_line[6]
+        a_line_comment = a_line[7]
+        # print('A: ', a_line)
+        for b_line in matrix:
+            b_line_a_name = b_line[0]
+            b_line_a_interface = b_line[1]
+            b_line_b_name = b_line[2]
+            b_line_b_interface = b_line[3]
+            b_line_a_sfp = b_line[4]
+            b_line_a_patch = b_line[5]
+            b_line_a_rack = b_line[6]
+            b_line_comment = b_line[7]
+            if a_line_b_name == b_line_a_name and \
+                    a_line_b_interface == b_line_a_interface:
+                # print('B: ', b_line)
+                ab_line = [a_line_a_name, a_line_a_interface, a_line_b_name, a_line_b_interface,
+                           a_line_a_sfp, a_line_a_patch, a_line_a_rack,
+                           b_line_a_sfp, b_line_a_patch, b_line_a_rack, a_line_comment]
+                result.append(ab_line)
+                # print('C: ', ab_line)
     return result
 
 
