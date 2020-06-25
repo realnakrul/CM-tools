@@ -34,12 +34,11 @@ def select_sheet(book):
 
 def read_sheet(sheet):
     matrix_list = []
-    row_list = []
-    #for row in range(0, sheet.nrows):
+    # for row in range(0, sheet.nrows):
     for row in sheet.iter_rows():
         row_list = []
         # print(row)
-        #for cell in sheet.row(row):
+        # for cell in sheet.row(row):
         for cell in row:
             # print(cell.value)
             row_list.append(cell.value)
@@ -51,8 +50,7 @@ def read_sheet(sheet):
 def clean_list(raw_matrix, b_index: int, header=True):
     """
     Removes all matrix entries without B device name (Device A open interfaces)
-    :param raw_matrix: Connectivity matrix with Device A open interfaces and
-    header
+    :param raw_matrix: Connectivity matrix with Device A open interfaces and header
     :param b_index: B device column in connectivity matrix
     :param header: Specifies if connectivity matrix has header in first row
     :return: Connectivity matrix without header and Device A open interfaces
@@ -100,9 +98,9 @@ def get_devices(matrix):
 
 def split_interfaces(device_columns: list, matrix):
     """
-    Splits single list item with device and interface into two list items,
-    assuming that interface is a substring after last space.
-    device_column is a list of indexes - specifies which list items to split
+    Splits single list item with device and interface into two list items, assuming that interface is a substring after
+    last space.
+    :param device_columns: is a list of indexes - specifies which list items to split
     """
     result = []
     for line in matrix:
@@ -120,14 +118,12 @@ def split_interfaces(device_columns: list, matrix):
 def populate_b(matrix):
     """
     Populates B device SFP, patch cord and rack from REVERSE record
-    :param matrix: Clean connectivity matrix in FORWARD and REVERSE
-    (Engineer) format without B SFP, Patch cord and rack
-    :return: Connectivity matrix in FORWARD and REVERSE format with
-    populated B SFP, Patch cord and rack
+    :param matrix: Clean connectivity matrix in FORWARD and REVERSE (Engineer) format without B SFP, Patch cord and rack
+    :return: Connectivity matrix in FORWARD and REVERSE format with populated B SFP, Patch cord and rack
     """
     result = []
     for a_line in matrix:
-        # ab_line = []
+        ab_line = []
         a_line_a_name = a_line[0]
         a_line_a_interface = a_line[1]
         a_line_b_name = a_line[2]
@@ -140,23 +136,22 @@ def populate_b(matrix):
         for b_line in matrix:
             b_line_a_name = b_line[0]
             b_line_a_interface = b_line[1]
-            b_line_b_name = b_line[2]
-            b_line_b_interface = b_line[3]
+            # b_line_b_name = b_line[2]
+            # b_line_b_interface = b_line[3]
             b_line_a_sfp = b_line[4]
             b_line_a_patch = b_line[5]
             b_line_a_rack = b_line[6]
-            b_line_comment = b_line[7]
+            # b_line_comment = b_line[7]
             if a_line_b_name == b_line_a_name and \
                     a_line_b_interface == b_line_a_interface:
                 # print('B: ', b_line)
                 ab_line = [a_line_a_name, a_line_a_interface, a_line_b_name, a_line_b_interface,
                            a_line_a_sfp, a_line_a_patch, a_line_a_rack,
                            b_line_a_sfp, b_line_a_patch, b_line_a_rack, a_line_comment]
-                result.append(ab_line)
-                # print('C: ', ab_line)
+        if not ab_line:
+            ab_line = [a_line_a_name, a_line_a_interface, a_line_b_name, a_line_b_interface,
+                       a_line_a_sfp, a_line_a_patch, a_line_a_rack,
+                       '', '', '', a_line_comment]
+        result.append(ab_line)
+        # print('C: ', ab_line)
     return result
-
-
-
-
-
