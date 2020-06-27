@@ -3,12 +3,9 @@ from openpyxl import Workbook
 
 
 def check_input(file):
+    print('-'*80)
     result = path.exists(file)
-    print(f'Input file: {file}')
-    if result:
-        print('Found.')
-    else:
-        print('Not found.')
+    print(f"Checking if input file \'{file}\' exist: {result}")
     return result
 
 
@@ -56,17 +53,28 @@ def clean_list(raw_matrix, b_index: int, header=True):
     :return: Connectivity matrix without header and Device A open interfaces
     """
     clean_matrix = []
+    print('Cleaning matrix')
+    print(f'\tRemoving header = {header}')
     if header:
         _ = raw_matrix.pop(0)
     for line in raw_matrix:
         if line[b_index]:
             clean_matrix.append(line)
+    print(f'\t{len(raw_matrix)-len(clean_matrix)} open interfaces removed')
     return clean_matrix
 
 
-def group_by_device(devices, matrix, add_name=True):
+def group_by_device(devices: list, matrix: list, add_name=True):
+    """
+    Groups matrix rows by device name
+    :param devices: Unique list of devices in the matrix
+    :param matrix: Connectivity matrix in ENGINEER format
+    :param add_name: Controls if device name required as a caption before group
+    :return: Connectivity matrix grouped by device
+    """
     result = []
-    print(f'Grouping by device with device header = {add_name}')
+    print('Grouping by device')
+    print(f'\tSet device name as a header = {add_name}')
     for device in devices:
         if add_name:
             result.append([device])
@@ -76,7 +84,15 @@ def group_by_device(devices, matrix, add_name=True):
     return result
 
 
-def write_to_excel(file, sheet_name, data):
+def write_to_excel(file, sheet_name, data: list):
+    """
+    Writes list to excel file
+    :param file: Output file name
+    :param sheet_name: Excel sheet name
+    :param data: List to write to excel
+    :return:
+    """
+    print(f"Saving excel sheet \'{sheet_name}\' to file \'{file}\'")
     book = Workbook(write_only=True)
     book.create_sheet(sheet_name)
     sheet = book[sheet_name]
@@ -90,17 +106,35 @@ def get_devices(matrix):
     for line in matrix:
         *device, _ = line[0].split()
         result.add(' '.join(device))
-    print(f'{len(result)} devices found:')
+    '''print(f'{len(result)} devices found:')
     for d in result:
-        print(d)
+        print(d)'''
     return list(result)
 
 
-def split_interfaces(device_columns: list, matrix):
+def get_unique_values(matrix: list, index_columns: list):
+    """
+    Gets unique values from a given matrix column
+    :param matrix: Connectivity matrix
+    :param index_columns: List of column indexes to get unique values
+    :return: List of unique values
+    """
+    result = set()
+    for i in index_columns:
+        for line in matrix:
+            result.add(line[i].strip())
+    '''print(f'{len(result)} devices found:')
+    for d in result:
+        print(d)'''
+    return list(result)
+
+
+def split_interfaces(matrix, device_columns: list):
     """
     Splits single list item with device and interface into two list items, assuming that interface is a substring after
     last space.
     :param device_columns: is a list of indexes - specifies which list items to split
+    :param matrix: Connectivity matrix with device and interface as one cell
     """
     result = []
     for line in matrix:
@@ -154,4 +188,46 @@ def populate_b(matrix):
                        '', '', '', a_line_comment]
         result.append(ab_line)
         # print('C: ', ab_line)
+    return result
+
+
+def engineer_format(matrix: list):
+    """
+    Creates ENGINEER format matrix from TECHNICIAN format
+    :return:
+    """
+    # TODO: Create reverse link lookup function
+    print('Creating ENGINEER format matrix')
+    reverse_list = []
+    result = []
+    for a_line in matrix:
+        a_line_a_name = a_line[0]
+        a_line_a_interface = a_line[1]
+        a_line_b_name = a_line[2]
+        a_line_b_interface = a_line[3]
+        a_line_a_sfp = a_line[4]
+        a_line_a_patch = a_line[5]
+        a_line_a_rack = a_line[6]
+        a_line_b_sfp = a_line[7]
+        a_line_b_patch = a_line[8]
+        a_line_b_rack = a_line[9]
+        a_line_comment = a_line[10]
+        # print('A: ', a_line)
+        result.append(a_line)
+        reverse_exist = False
+        for b_line in matrix:
+            b_line_a_name = b_line[0]
+            b_line_a_interface = b_line[1]
+            b_line_b_name = b_line[2]
+            b_line_b_interface = b_line[3]
+            if a_line_a_name == b_line_b_name and a_line_b_name == b_line_a_name and \
+                    a_line_a_interface == b_line_b_interface and a_line_b_interface == b_line_a_interface:
+                reverse_exist = True
+        if not reverse_exist:
+            reverse_list.append([a_line_b_name, a_line_b_interface, a_line_a_name, a_line_a_interface,
+                                 a_line_b_sfp, a_line_b_patch, a_line_b_rack,
+                                 a_line_a_sfp, a_line_a_patch, a_line_a_rack, a_line_comment])
+    print(f'\t{len(reverse_list)} reverse connections added')
+    if reverse_list:
+        result += reverse_list
     return result
