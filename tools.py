@@ -1,5 +1,10 @@
 from os import path
 from openpyxl import Workbook
+from collections import namedtuple
+
+
+Link = namedtuple('Link', 'a_name, a_interface, b_name, b_interface, a_sfp, a_patch, a_rack, \
+                           b_sfp, b_patch, b_rack, comment')
 
 
 def check_input(file):
@@ -191,43 +196,41 @@ def populate_b(matrix):
     return result
 
 
+def get_reverse(matrix: list, link_str: str):
+    """
+    Searches for REVERSE link for given link and matrix
+    :param matrix: Clean connectivity matrix
+    :param link_str: FORWARD link
+    :return: REVERSE link
+    """
+    forward = Link(*link_str)
+    result = ''
+    for line in matrix:
+        reverse = Link(*line)
+        if forward.a_name == reverse.b_name and forward.b_name == reverse.a_name and \
+                forward.a_interface == reverse.b_interface and forward.b_interface == reverse.a_interface:
+            result = line
+    return result
+
+
 def engineer_format(matrix: list):
     """
     Creates ENGINEER format matrix from TECHNICIAN format
-    :return:
+    :param: matrix: Clean connectivity matrix
+    :return: Connectivity matrix in ENGINEER format
     """
-    # TODO: Create reverse link lookup function
     print('Creating ENGINEER format matrix')
     reverse_list = []
     result = []
-    for a_line in matrix:
-        a_line_a_name = a_line[0]
-        a_line_a_interface = a_line[1]
-        a_line_b_name = a_line[2]
-        a_line_b_interface = a_line[3]
-        a_line_a_sfp = a_line[4]
-        a_line_a_patch = a_line[5]
-        a_line_a_rack = a_line[6]
-        a_line_b_sfp = a_line[7]
-        a_line_b_patch = a_line[8]
-        a_line_b_rack = a_line[9]
-        a_line_comment = a_line[10]
-        # print('A: ', a_line)
-        result.append(a_line)
-        reverse_exist = False
-        for b_line in matrix:
-            b_line_a_name = b_line[0]
-            b_line_a_interface = b_line[1]
-            b_line_b_name = b_line[2]
-            b_line_b_interface = b_line[3]
-            if a_line_a_name == b_line_b_name and a_line_b_name == b_line_a_name and \
-                    a_line_a_interface == b_line_b_interface and a_line_b_interface == b_line_a_interface:
-                reverse_exist = True
-        if not reverse_exist:
-            reverse_list.append([a_line_b_name, a_line_b_interface, a_line_a_name, a_line_a_interface,
-                                 a_line_b_sfp, a_line_b_patch, a_line_b_rack,
-                                 a_line_a_sfp, a_line_a_patch, a_line_a_rack, a_line_comment])
+    for line in matrix:
+        forward = Link(*line)
+        result.append(line)
+        if not get_reverse(matrix, line):
+            reverse_list.append([forward.b_name, forward.b_interface, forward.a_name, forward.a_interface,
+                                 forward.b_sfp, forward.b_patch, forward.b_rack,
+                                 forward.a_sfp, forward.a_patch, forward.a_rack, forward.comment])
     print(f'\t{len(reverse_list)} reverse connections added')
     if reverse_list:
         result += reverse_list
+    # print(result)
     return result
