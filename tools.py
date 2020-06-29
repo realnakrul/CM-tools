@@ -49,7 +49,7 @@ def read_sheet(sheet):
     return matrix_list
 
 
-def clean_list(raw_matrix, b_index: int, header=True):
+def clean_list(raw_matrix, b_index: int):
     """
     Removes all matrix entries without B device name (Device A open interfaces)
     :param raw_matrix: Connectivity matrix with Device A open interfaces and header
@@ -58,7 +58,25 @@ def clean_list(raw_matrix, b_index: int, header=True):
     :return: Connectivity matrix without header and Device A open interfaces
     """
     clean_matrix = []
+    correct_input = False
+    print('-'*80)
     print('Cleaning matrix')
+    print('Header row MUST be removed')
+    print('First row:')
+    print('| ', end='')
+    for cell in raw_matrix[0]:
+        print(cell, end=' | ')
+    print()
+    while not correct_input:
+        answer = input('Is it header (y/n): ')
+        if answer == 'y':
+            correct_input = True
+            header = True
+        elif answer == 'n':
+            correct_input = True
+            header = False
+        else:
+            print('y or n')
     print(f'\tRemoving header = {header}')
     if header:
         _ = raw_matrix.pop(0)
@@ -84,7 +102,7 @@ def group_by_device(devices: list, matrix: list, add_name=True):
         if add_name:
             result.append([device])
         for line in matrix:
-            if device in line[0]:
+            if device in str(line[0]):
                 result.append(line)
     return result
 
@@ -97,6 +115,12 @@ def write_to_excel(file, sheet_name, data: list):
     :param data: List to write to excel
     :return:
     """
+    header = ['Device A name', 'Device A interface', 'Device B name', 'Device B interface', 'Device A SFP',
+              'Device A patch cord', 'Device A rack', 'Device B SFP', 'Device B patch cord', 'Device B rack', 'Comment']
+
+    print('-'*80)
+    print('Adding header')
+    data.insert(0, header)
     print(f"Saving excel sheet \'{sheet_name}\' to file \'{file}\'")
     book = Workbook(write_only=True)
     book.create_sheet(sheet_name)
@@ -127,7 +151,7 @@ def get_unique_values(matrix: list, index_columns: list):
     result = set()
     for i in index_columns:
         for line in matrix:
-            result.add(line[i].strip())
+            result.add(str(line[i]).strip())
     '''print(f'{len(result)} devices found:')
     for d in result:
         print(d)'''
@@ -219,6 +243,7 @@ def engineer_format(matrix: list):
     :param: matrix: Clean connectivity matrix
     :return: Connectivity matrix in ENGINEER format
     """
+    print('-'*80)
     print('Creating ENGINEER format matrix')
     reverse_list = []
     result = []
@@ -233,4 +258,22 @@ def engineer_format(matrix: list):
     if reverse_list:
         result += reverse_list
     # print(result)
+    return result
+
+
+def technician_format(matrix: list):
+    """
+    Creates TECHNICIAN format matrix from ENGINEER format
+    :param: matrix: Clean connectivity matrix
+    :return: Connectivity matrix in TECHNICIAN format
+    """
+    print('-'*80)
+    print('Creating TECHNICIAN format matrix')
+    # reverse_list = []
+    result = []
+    for line in matrix:
+        forward = Link(*line)
+        if not get_reverse(result, line):
+            result.append(line)
+    print(f'\t{len(matrix)-len(result)} reverse connections removed')
     return result

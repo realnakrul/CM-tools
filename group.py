@@ -27,7 +27,7 @@ def main():
         group_list = tools.group_by_device(devices, clean_matrix_list)
         # split_list = tools.split_interfaces([0, 1], clean_matrix_list)
         # clean_matrix_list = tools.populate_b(clean_matrix_list)
-        clean_matrix_list = tools.engineer_format(clean_matrix_list)
+        clean_matrix_list = tools.technician_format(clean_matrix_list)
         tools.write_to_excel(matrix_output, sheet.title, clean_matrix_list)
 
 
