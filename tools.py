@@ -15,23 +15,29 @@ def check_input(file):
 
 
 def select_sheet(book):
+    sheets = []
     print('Available sheets: ')
     for ind, sheet in enumerate(book.sheetnames, 1):
         print(f'{ind}. {sheet}')
+    print(f'{len(book.sheetnames)+1}. ALL')
     correct = False
+    # print(book.worksheets)
     while not correct:
         try:
-            sheet_ind = int(input(f'Select sheet (1 - {len(book.sheetnames)}): '))
-            # sheet = book.sheet_by_index(sheet_ind - 1)
-            sheet = book.worksheets[sheet_ind - 1]
-            correct = True
+            sheet_ind = int(input(f'Select sheet (1 - {len(book.sheetnames) + 1}): '))
+            if sheet_ind == len(book.sheetnames)+1:
+                sheets = book.worksheets
+                correct = True
+            elif sheet_ind <= len(book.sheetnames)+1:
+                sheets.append(book.worksheets[sheet_ind - 1])
+                correct = True
         except ValueError:
             print('Select sheet number')
         except IndexError:
-            print(f'Select sheet number in range (1 - {len(book.sheetnames)})')
+            print(f'Select sheet number in range (1 - {len(book.sheetnames)+1})')
         except Exception as e:
             print(type(e), e)
-    return sheet
+    return sheets
 
 
 def read_sheet(sheet):
@@ -59,9 +65,8 @@ def clean_list(raw_matrix, b_index: int):
     """
     clean_matrix = []
     correct_input = False
-    print('-'*80)
     print('Cleaning matrix')
-    print('Header row MUST be removed')
+    print('Header row MUST be removed for processing (will be added back later)')
     print('First row:')
     print('| ', end='')
     for cell in raw_matrix[0]:
@@ -107,27 +112,25 @@ def group_by_device(devices: list, matrix: list, add_name=True):
     return result
 
 
-def write_to_excel(file, sheet_name, data: list):
+def add_to_sheet(book, sheet_name, data: list):
     """
-    Writes list to excel file
-    :param file: Output file name
+    Adds excel sheet to workbook and fills it with data
+    :param book: Excel workbook
     :param sheet_name: Excel sheet name
-    :param data: List to write to excel
-    :return:
+    :param data: List to write to excel sheet
+    :return: Excel workbook with given sheet
     """
     header = ['Device A name', 'Device A interface', 'Device B name', 'Device B interface', 'Device A SFP',
               'Device A patch cord', 'Device A rack', 'Device B SFP', 'Device B patch cord', 'Device B rack', 'Comment']
 
-    print('-'*80)
     print('Adding header')
     data.insert(0, header)
-    print(f"Saving excel sheet \'{sheet_name}\' to file \'{file}\'")
-    book = Workbook(write_only=True)
+    print(f"Adding excel sheet \'{sheet_name}\' to result workbook")
     book.create_sheet(sheet_name)
     sheet = book[sheet_name]
     for line in data:
         sheet.append(line)
-    book.save(file)
+    return book
 
 
 def get_devices(matrix):
@@ -243,7 +246,6 @@ def engineer_format(matrix: list):
     :param: matrix: Clean connectivity matrix
     :return: Connectivity matrix in ENGINEER format
     """
-    print('-'*80)
     print('Creating ENGINEER format matrix')
     reverse_list = []
     result = []
@@ -267,13 +269,43 @@ def technician_format(matrix: list):
     :param: matrix: Clean connectivity matrix
     :return: Connectivity matrix in TECHNICIAN format
     """
-    print('-'*80)
     print('Creating TECHNICIAN format matrix')
     # reverse_list = []
     result = []
     for line in matrix:
-        forward = Link(*line)
+        # forward = Link(*line)
         if not get_reverse(result, line):
             result.append(line)
     print(f'\t{len(matrix)-len(result)} reverse connections removed')
+    return result
+
+
+def consistency_check(matrix: list):
+    """
+    Checks if interfaces are not duplicated or linked to itself
+    :param matrix: Clean connectivity matrix
+    :return: List of warning if detected
+    """
+    result = []
+    for first_ind, first_line in enumerate(matrix):
+        first_link = Link(*first_line)
+        if first_link.a_name == first_link.b_name and first_link.a_interface == first_link.b_interface:
+            print(f'Warning: {first_link.a_name} {first_link.a_interface} links to itself. '
+                  f'Line {first_ind}')
+            result.append(f'Warning: {first_link.a_name} interface {first_link.a_interface} links to itself. '
+                          f'Line {first_ind}')
+        for second_ind, second_line in enumerate(matrix):
+            second_link = Link(*second_line)
+            if first_ind != second_ind and first_link.a_name == second_link.a_name and \
+                    first_link.a_interface == second_link.a_interface:
+                print(f'Warning: {first_link.a_name} {first_link.a_interface} duplicated. '
+                      f'Lines {first_ind} and {second_ind}')
+                result.append(f'Warning: {first_link.a_name} {first_link.a_interface} duplicated. '
+                              f'Lines {first_ind} and {second_ind}')
+            elif first_ind != second_ind and first_link.b_name == second_link.b_name and \
+                    first_link.b_interface == second_link.b_interface:
+                print(f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. '
+                      f'Lines {first_ind} and {second_ind}')
+                result.append(f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. '
+                              f'Lines {first_ind} and {second_ind}')
     return result
