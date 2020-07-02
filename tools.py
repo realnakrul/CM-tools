@@ -55,12 +55,10 @@ def read_sheet(sheet):
     return matrix_list
 
 
-def clean_list(raw_matrix, b_index: int):
+def clean_list(raw_matrix):
     """
     Removes all matrix entries without B device name (Device A open interfaces)
     :param raw_matrix: Connectivity matrix with Device A open interfaces and header
-    :param b_index: B device column in connectivity matrix
-    :param header: Specifies if connectivity matrix has header in first row
     :return: Connectivity matrix without header and Device A open interfaces
     """
     clean_matrix = []
@@ -86,13 +84,18 @@ def clean_list(raw_matrix, b_index: int):
     if header:
         _ = raw_matrix.pop(0)
     for line in raw_matrix:
-        if line[b_index]:
+        link = Link(*line)
+        if not link.a_rack:
+            line[6] = 'Unknown'
+        if not link.b_rack:
+            line[9] = 'Unknown'
+        if link.b_name:
             clean_matrix.append(line)
     print(f'\t{len(raw_matrix)-len(clean_matrix)} open interfaces removed')
     return clean_matrix
 
 
-def group_by_device(devices: list, matrix: list, add_name=True):
+def group_by_device(devices: list, matrix: list, add_name=False):
     """
     Groups matrix rows by device name
     :param devices: Unique list of devices in the matrix
@@ -104,11 +107,18 @@ def group_by_device(devices: list, matrix: list, add_name=True):
     print('Grouping by device')
     print(f'\tSet device name as a header = {add_name}')
     for device in devices:
+        device_group = []
+        # print(device)
         if add_name:
             result.append([device])
         for line in matrix:
             if device in str(line[0]):
-                result.append(line)
+                device_group.append(line)
+        # print(device_group)
+        device_group.sort(key=lambda x: x[1])
+        if device_group:
+            result += device_group
+    result.sort()
     return result
 
 
@@ -131,17 +141,6 @@ def add_to_sheet(book, sheet_name, data: list):
     for line in data:
         sheet.append(line)
     return book
-
-
-def get_devices(matrix):
-    result = set()
-    for line in matrix:
-        *device, _ = line[0].split()
-        result.add(' '.join(device))
-    '''print(f'{len(result)} devices found:')
-    for d in result:
-        print(d)'''
-    return list(result)
 
 
 def get_unique_values(matrix: list, index_columns: list):
@@ -246,7 +245,7 @@ def engineer_format(matrix: list):
     :param: matrix: Clean connectivity matrix
     :return: Connectivity matrix in ENGINEER format
     """
-    print('Creating ENGINEER format matrix')
+    print('Enforcing ENGINEER format matrix')
     reverse_list = []
     result = []
     for line in matrix:
@@ -269,7 +268,7 @@ def technician_format(matrix: list):
     :param: matrix: Clean connectivity matrix
     :return: Connectivity matrix in TECHNICIAN format
     """
-    print('Creating TECHNICIAN format matrix')
+    print('Enforcing TECHNICIAN format matrix')
     # reverse_list = []
     result = []
     for line in matrix:
@@ -286,6 +285,7 @@ def consistency_check(matrix: list):
     :param matrix: Clean connectivity matrix
     :return: List of warning if detected
     """
+    # TODO: Interface not empty check, Same device different racks check
     result = []
     for first_ind, first_line in enumerate(matrix):
         first_link = Link(*first_line)
