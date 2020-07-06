@@ -30,12 +30,14 @@ def main():
                 # split_list = tools.split_interfaces([0, 1], clean_matrix_list)
                 # clean_matrix_list = tools.populate_b(clean_matrix_list)
                 clean_matrix_list = tools.engineer_format(clean_matrix_list)
+                tools.rack_to_rack_summary(racks, clean_matrix_list)
                 clean_matrix_list = tools.group_by_device(devices, clean_matrix_list)
                 destination_book = tools.add_to_sheet(destination_book, sheet.title, clean_matrix_list)
             else:
                 print('Processing impossible, skipping')
         print('-'*80)
         print(f'Saving result workbook as {destination_file}')
+        # TODO: Check if book is not empty (in case of proccessing impossible
         destination_book.save(destination_file)
 
 

@@ -1,6 +1,8 @@
 from os import path
 from openpyxl import Workbook
 from collections import namedtuple
+from itertools import combinations
+from collections import Counter
 
 
 Link = namedtuple('Link', 'a_name, a_interface, b_name, b_interface, a_sfp, a_patch, a_rack, \
@@ -160,7 +162,7 @@ def get_unique_values(matrix: list, index_columns: list):
     return list(result)
 
 
-def split_interfaces(matrix, device_columns: list):
+def legacy_split_interfaces(matrix, device_columns: list):
     """
     Splits single list item with device and interface into two list items, assuming that interface is a substring after
     last space.
@@ -180,7 +182,7 @@ def split_interfaces(matrix, device_columns: list):
     return result
 
 
-def populate_b(matrix):
+def legacy_populate_b(matrix):
     """
     Populates B device SFP, patch cord and rack from REVERSE record
     :param matrix: Clean connectivity matrix in FORWARD and REVERSE (Engineer) format without B SFP, Patch cord and rack
@@ -285,7 +287,7 @@ def consistency_check(matrix: list):
     :param matrix: Clean connectivity matrix
     :return: List of warning if detected
     """
-    # TODO: Interface not empty check, Same device different racks check
+    # TODO: Same device different racks check, clean result and print
     result = []
     for first_ind, first_line in enumerate(matrix):
         first_link = Link(*first_line)
@@ -294,6 +296,16 @@ def consistency_check(matrix: list):
                   f'Line {first_ind}')
             result.append(f'Warning: {first_link.a_name} interface {first_link.a_interface} links to itself. '
                           f'Line {first_ind}')
+        if not first_link.a_patch and not first_link.b_patch:
+            print(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
+                  f'{first_link.b_interface} At least one patch cord should be filled. Line {first_ind}')
+            result.append(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
+                          f'{first_link.b_interface} At least one patch cord should be filled. Line {first_ind}')
+        if not first_link.a_interface or not first_link.b_interface:
+            print(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
+                  f'{first_link.b_interface} Interface can not be empty. Line {first_ind}')
+            result.append(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
+                          f'{first_link.b_interface} Interface can not be empty. Line {first_ind}')
         for second_ind, second_line in enumerate(matrix):
             second_link = Link(*second_line)
             if first_ind != second_ind and first_link.a_name == second_link.a_name and \
@@ -309,3 +321,45 @@ def consistency_check(matrix: list):
                 result.append(f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. '
                               f'Lines {first_ind} and {second_ind}')
     return result
+
+
+def rack_to_rack_summary(racks: list, matrix: list):
+    """
+    Creates all possible combinations of existing racks and counts rack to rack connections
+    :param racks: All racks list
+    :param matrix: Connectivity matrix in ENGINEERING format
+    :return: Summary list of rack to rack connections
+    """
+    print('Getting summary of rack to rack connection')
+    for racks_combination in list(combinations(racks, 2)):
+        rack_to_rack_links = []
+        for line in matrix:
+            link = Link(*line)
+            if racks_combination[0] == link.a_rack and racks_combination[1] == link.b_rack:
+                rack_to_rack_links.append(line)
+        if rack_to_rack_links:
+            print(f'\t{racks_combination[0]} to {racks_combination[1]:}')
+            # print(rack_to_rack_links)
+            for type_sum in links_by_type_summary(rack_to_rack_links):
+                print(f'\t {type_sum[0]}: {type_sum[1]}')
+
+
+def links_by_type_summary(matrix: list):
+    """
+    Creates links by type summary
+    :param matrix: Connectivity matrix between two specific racks
+    :return: List of connection types with connections amount
+    """
+    link_types = []
+    for line in matrix:
+        link = Link(*line)
+        if link.a_patch:
+            link_types.append(link.a_patch)
+        elif link.b_patch:
+            link_types.append(link.b_patch)
+    result = [[key, value] for key, value in Counter(link_types).items()]
+    return result
+
+
+
+
