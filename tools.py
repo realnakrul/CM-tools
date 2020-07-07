@@ -114,7 +114,7 @@ def group_by_device(devices: list, matrix: list, add_name=False):
         if add_name:
             result.append([device])
         for line in matrix:
-            if device in str(line[0]):
+            if device == str(line[0]):
                 device_group.append(line)
         # print(device_group)
         device_group.sort(key=lambda x: x[1])
@@ -257,6 +257,7 @@ def engineer_format(matrix: list):
             reverse_list.append([forward.b_name, forward.b_interface, forward.a_name, forward.a_interface,
                                  forward.b_sfp, forward.b_patch, forward.b_rack,
                                  forward.a_sfp, forward.a_patch, forward.a_rack, forward.comment])
+            print('Reverse fail:', line)
     print(f'\t{len(reverse_list)} reverse connections added')
     if reverse_list:
         result += reverse_list
