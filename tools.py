@@ -3,10 +3,19 @@ from openpyxl import Workbook
 from collections import namedtuple
 from itertools import combinations
 from collections import Counter
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, PatternFill
 
 
 Link = namedtuple('Link', 'a_name, a_interface, b_name, b_interface, a_sfp, a_patch, a_rack, \
                            b_sfp, b_patch, b_rack, comment')
+
+
+HEADERS = {'summary': ['Source Rack', 'Destination Rack', 'Link type', 'Amount'],
+           'connectivity': ['Device A name', 'Device A port', 'Device B name', 'Device B port',
+                            'Device A SFP', 'Device A patch cord', 'Device A rack',
+                            'Device B SFP', 'Device B patch cord', 'Device B rack', 'Comment']}
 
 
 def check_input(file):
@@ -65,7 +74,7 @@ def clean_list(raw_matrix):
     """
     clean_matrix = []
     correct_input = False
-    print('Cleaning matrix')
+    print('Cleaning connectivity matrix')
     print('Header row MUST be removed for processing (will be added back later)')
     print('First row:')
     print('| ', end='')
@@ -124,18 +133,18 @@ def group_by_device(devices: list, matrix: list, add_name=False):
     return result
 
 
-def add_to_sheet(book, sheet_name, data: list):
+def add_to_sheet(book, sheet_name, data: list, header_type: str):
     """
     Adds excel sheet to workbook and fills it with data
+    :param header_type: 'connectivity' or 'summary'
     :param book: Excel workbook
     :param sheet_name: Excel sheet name
     :param data: List to write to excel sheet
     :return: Excel workbook with given sheet
     """
-    header = ['Device A name', 'Device A interface', 'Device B name', 'Device B interface', 'Device A SFP',
-              'Device A patch cord', 'Device A rack', 'Device B SFP', 'Device B patch cord', 'Device B rack', 'Comment']
-
-    print('Adding header')
+    print(f'Adding {header_type} header')
+    header = HEADERS[header_type]
+    # print(header)
     data.insert(0, header)
     print(f"Adding excel sheet \'{sheet_name}\' to result workbook")
     book.create_sheet(sheet_name)
@@ -282,46 +291,68 @@ def technician_format(matrix: list):
     return result
 
 
-def consistency_check(matrix: list):
+def consistency_check(matrix: list, devices: list):
     """
     Checks if interfaces are not duplicated or linked to itself
+    :param devices: List of available devices
     :param matrix: Clean connectivity matrix
     :return: List of warning if detected
     """
-    # TODO: Same device different racks check, clean result and print
     result = []
     for first_ind, first_line in enumerate(matrix):
         first_link = Link(*first_line)
         if first_link.a_name == first_link.b_name and first_link.a_interface == first_link.b_interface:
-            print(f'Warning: {first_link.a_name} {first_link.a_interface} links to itself. '
-                  f'Line {first_ind}')
-            result.append(f'Warning: {first_link.a_name} interface {first_link.a_interface} links to itself. '
-                          f'Line {first_ind}')
+            warn = f'Warning: {first_link.a_name} {first_link.a_interface} links to itself.'
+            print(f'\t{warn}')
+            result.append(warn)
         if not first_link.a_patch and not first_link.b_patch:
-            print(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
-                  f'{first_link.b_interface} At least one patch cord should be filled. Line {first_ind}')
-            result.append(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
-                          f'{first_link.b_interface} At least one patch cord should be filled. Line {first_ind}')
+            warn = f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} ' \
+                   f'{first_link.b_interface} At least one patch cord should be filled.'
+            print(f'\t{warn}')
+            result.append(warn)
         if not first_link.a_interface or not first_link.b_interface:
-            print(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
-                  f'{first_link.b_interface} Interface can not be empty. Line {first_ind}')
-            result.append(f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} '
-                          f'{first_link.b_interface} Interface can not be empty. Line {first_ind}')
+            warn = f'Warning: {first_link.a_name} {first_link.a_interface} <-> {first_link.b_name} ' \
+                   f'{first_link.b_interface} Interface can not be empty.'
+            print(f'\t{warn}')
+            result.append(warn)
         for second_ind, second_line in enumerate(matrix):
             second_link = Link(*second_line)
             if first_ind != second_ind and first_link.a_name == second_link.a_name and \
                     first_link.a_interface == second_link.a_interface:
-                print(f'Warning: {first_link.a_name} {first_link.a_interface} duplicated. '
-                      f'Lines {first_ind} and {second_ind}')
-                result.append(f'Warning: {first_link.a_name} {first_link.a_interface} duplicated. '
-                              f'Lines {first_ind} and {second_ind}')
+                warn = f'Warning: {first_link.a_name} {first_link.a_interface} duplicated. -> {first_link.b_name} ' \
+                       f'{first_link.b_interface} and {second_link.b_name} {second_link.b_interface}'
+                print(f'\t{warn}')
+                result.append(warn)
             elif first_ind != second_ind and first_link.b_name == second_link.b_name and \
                     first_link.b_interface == second_link.b_interface:
-                print(f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. '
-                      f'Lines {first_ind} and {second_ind}')
-                result.append(f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. '
-                              f'Lines {first_ind} and {second_ind}')
+                warn = f'Warning: {first_link.b_name} {first_link.b_interface} duplicated. -> {first_link.a_name} ' \
+                       f'{first_link.a_interface} and {second_link.a_name} {second_link.a_interface}'
+                print(f'\t{warn}')
+                result.append(warn)
+    for device in devices:
+        location = get_rack_by_device(matrix, device)
+        if len(location) > 1:
+            warn = f'Warning: {device} located in more then one rack: {", ".join(location)}'
+            print(f'\t{warn}')
+            result.append(warn)
     return result
+
+
+def get_rack_by_device(matrix: list, device: str):
+    """
+    Gets device location racks
+    :param device:
+    :param matrix: Clean connectivity matrix
+    :return: List of device location racks
+    """
+    result = set()
+    for line in matrix:
+        link = Link(*line)
+        if link.a_name == device:
+            result.add(link.a_rack)
+        elif link.b_name == device:
+            result.add(link.b_rack)
+    return list(result)
 
 
 def rack_to_rack_summary(racks: list, matrix: list):
@@ -331,18 +362,22 @@ def rack_to_rack_summary(racks: list, matrix: list):
     :param matrix: Connectivity matrix in ENGINEERING format
     :return: Summary list of rack to rack connections
     """
-    print('Getting summary of rack to rack connection')
+    print('Getting summary of rack to rack connections')
+    result = []
     for racks_combination in list(combinations(racks, 2)):
         rack_to_rack_links = []
+        summary_line = []
         for line in matrix:
             link = Link(*line)
             if racks_combination[0] == link.a_rack and racks_combination[1] == link.b_rack:
                 rack_to_rack_links.append(line)
         if rack_to_rack_links:
-            print(f'\t{racks_combination[0]} to {racks_combination[1]:}')
+            # print(f'\t{racks_combination[0]} to {racks_combination[1]:}')
             # print(rack_to_rack_links)
+
             for type_sum in links_by_type_summary(rack_to_rack_links):
-                print(f'\t {type_sum[0]}: {type_sum[1]}')
+                result.append([racks_combination[0], racks_combination[1], type_sum[0], type_sum[1]])
+    return result
 
 
 def links_by_type_summary(matrix: list):
@@ -362,5 +397,32 @@ def links_by_type_summary(matrix: list):
     return result
 
 
-
+def add_filters(file_name):
+    """
+    Adds Excel filters to all sheets of workbook
+    :param file_name: Excel workbook file name
+    :return:
+    """
+    filter_book = load_workbook(file_name)
+    for sheet_name in filter_book.sheetnames:
+        sheet = filter_book[sheet_name]
+        # print(sheet['A1'].width)
+        # print(sheet.max_column)
+        for col in range(1, sheet.max_column + 1):
+            max_len = 0
+            sheet[get_column_letter(col)+'1'].fill = PatternFill(start_color='FF036c9b', end_color='FF036c9b',
+                                                                 fill_type='solid')
+            sheet[get_column_letter(col) + '1'].font = Font(color='FFFFFFFF')
+            for row in range(1, sheet.max_row + 1):
+                cell = sheet[get_column_letter(col)+str(row)]
+                if cell.value:
+                    if len(str(cell.value)) > max_len:
+                        max_len = len(str(cell.value))
+                    # print(cell.value, len(str(cell.value)))
+            # print(max_len)
+            sheet.column_dimensions[get_column_letter(col)].width = max_len + 3
+            # sheet.column_dimensions['C'].bestFit = True
+        sheet.auto_filter.ref = sheet.dimensions
+        sheet.freeze_panes = 'A2'
+    filter_book.save(file_name)
 
