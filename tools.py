@@ -1,8 +1,6 @@
-from os import path
-from openpyxl import Workbook
-from collections import namedtuple
+from os import path, rename
+from collections import namedtuple, Counter
 from itertools import combinations
-from collections import Counter
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill
@@ -18,11 +16,33 @@ HEADERS = {'summary': ['Source Rack', 'Destination Rack', 'Link type', 'Amount']
                             'Device B SFP', 'Device B patch cord', 'Device B rack', 'Comment']}
 
 
-def check_input(file):
+def check_src_file(file):
+    """
+    Checks if source file exists
+    :param file: Source file
+    :return: Boolean
+    """
     print('-'*80)
     result = path.exists(file)
     print(f"Checking if input file \'{file}\' exist: {result}")
     return result
+
+
+def check_dst_file(file):
+    """
+    Checks if destination file is not open and available for writing
+    :param file: Destination file name
+    :return:
+    """
+    if path.exists(file):
+        while True:
+            try:
+                rename(file, 'tmpfile.xlsx')
+                rename('tmpfile.xlsx', file)
+                break
+            except OSError:
+                print('Output file is open. Close the file and hit ENTER, please')
+                input()
 
 
 def select_sheet(book):
@@ -32,7 +52,6 @@ def select_sheet(book):
         print(f'{ind}. {sheet}')
     print(f'{len(book.sheetnames)+1}. ALL')
     correct = False
-    # print(book.worksheets)
     while not correct:
         try:
             sheet_ind = int(input(f'Select sheet (1 - {len(book.sheetnames) + 1}): '))
@@ -53,16 +72,11 @@ def select_sheet(book):
 
 def read_sheet(sheet):
     matrix_list = []
-    # for row in range(0, sheet.nrows):
     for row in sheet.iter_rows():
         row_list = []
-        # print(row)
-        # for cell in sheet.row(row):
         for cell in row:
-            # print(cell.value)
             row_list.append(cell.value)
         matrix_list.append(row_list)
-    # for row in wb.sheet_by_index(0).rows
     return matrix_list
 
 
@@ -82,7 +96,7 @@ def clean_list(raw_matrix):
         print(cell, end=' | ')
     print()
     while not correct_input:
-        answer = input('Is it header (y/n): ')
+        answer = input('Is it header (y/n): ').lower()
         if answer == 'y':
             correct_input = True
             header = True
@@ -119,13 +133,11 @@ def group_by_device(devices: list, matrix: list, add_name=False):
     print(f'\tSet device name as a header = {add_name}')
     for device in devices:
         device_group = []
-        # print(device)
         if add_name:
             result.append([device])
         for line in matrix:
             if device == str(line[0]):
                 device_group.append(line)
-        # print(device_group)
         device_group.sort(key=lambda x: x[1])
         if device_group:
             result += device_group
@@ -144,7 +156,6 @@ def add_to_sheet(book, sheet_name, data: list, header_type: str):
     """
     print(f'Adding {header_type} header')
     header = HEADERS[header_type]
-    # print(header)
     data.insert(0, header)
     print(f"Adding excel sheet \'{sheet_name}\' to result workbook")
     book.create_sheet(sheet_name)
@@ -165,9 +176,6 @@ def get_unique_values(matrix: list, index_columns: list):
     for i in index_columns:
         for line in matrix:
             result.add(str(line[i]).strip())
-    '''print(f'{len(result)} devices found:')
-    for d in result:
-        print(d)'''
     return list(result)
 
 
@@ -208,19 +216,14 @@ def legacy_populate_b(matrix):
         a_line_a_patch = a_line[5]
         a_line_a_rack = a_line[6]
         a_line_comment = a_line[7]
-        # print('A: ', a_line)
         for b_line in matrix:
             b_line_a_name = b_line[0]
             b_line_a_interface = b_line[1]
-            # b_line_b_name = b_line[2]
-            # b_line_b_interface = b_line[3]
             b_line_a_sfp = b_line[4]
             b_line_a_patch = b_line[5]
             b_line_a_rack = b_line[6]
-            # b_line_comment = b_line[7]
             if a_line_b_name == b_line_a_name and \
                     a_line_b_interface == b_line_a_interface:
-                # print('B: ', b_line)
                 ab_line = [a_line_a_name, a_line_a_interface, a_line_b_name, a_line_b_interface,
                            a_line_a_sfp, a_line_a_patch, a_line_a_rack,
                            b_line_a_sfp, b_line_a_patch, b_line_a_rack, a_line_comment]
@@ -229,7 +232,6 @@ def legacy_populate_b(matrix):
                        a_line_a_sfp, a_line_a_patch, a_line_a_rack,
                        '', '', '', a_line_comment]
         result.append(ab_line)
-        # print('C: ', ab_line)
     return result
 
 
@@ -266,11 +268,10 @@ def engineer_format(matrix: list):
             reverse_list.append([forward.b_name, forward.b_interface, forward.a_name, forward.a_interface,
                                  forward.b_sfp, forward.b_patch, forward.b_rack,
                                  forward.a_sfp, forward.a_patch, forward.a_rack, forward.comment])
-            print('Reverse fail:', line)
+            print('\tReverse fail:', line)
     print(f'\t{len(reverse_list)} reverse connections added')
     if reverse_list:
         result += reverse_list
-    # print(result)
     return result
 
 
@@ -281,10 +282,8 @@ def technician_format(matrix: list):
     :return: Connectivity matrix in TECHNICIAN format
     """
     print('Enforcing TECHNICIAN format matrix')
-    # reverse_list = []
     result = []
     for line in matrix:
-        # forward = Link(*line)
         if not get_reverse(result, line):
             result.append(line)
     print(f'\t{len(matrix)-len(result)} reverse connections removed')
@@ -366,15 +365,11 @@ def rack_to_rack_summary(racks: list, matrix: list):
     result = []
     for racks_combination in list(combinations(racks, 2)):
         rack_to_rack_links = []
-        summary_line = []
         for line in matrix:
             link = Link(*line)
             if racks_combination[0] == link.a_rack and racks_combination[1] == link.b_rack:
                 rack_to_rack_links.append(line)
         if rack_to_rack_links:
-            # print(f'\t{racks_combination[0]} to {racks_combination[1]:}')
-            # print(rack_to_rack_links)
-
             for type_sum in links_by_type_summary(rack_to_rack_links):
                 result.append([racks_combination[0], racks_combination[1], type_sum[0], type_sum[1]])
     return result
@@ -406,8 +401,6 @@ def add_filters(file_name):
     filter_book = load_workbook(file_name)
     for sheet_name in filter_book.sheetnames:
         sheet = filter_book[sheet_name]
-        # print(sheet['A1'].width)
-        # print(sheet.max_column)
         for col in range(1, sheet.max_column + 1):
             max_len = 0
             sheet[get_column_letter(col)+'1'].fill = PatternFill(start_color='FF036c9b', end_color='FF036c9b',
@@ -418,11 +411,7 @@ def add_filters(file_name):
                 if cell.value:
                     if len(str(cell.value)) > max_len:
                         max_len = len(str(cell.value))
-                    # print(cell.value, len(str(cell.value)))
-            # print(max_len)
             sheet.column_dimensions[get_column_letter(col)].width = max_len + 3
-            # sheet.column_dimensions['C'].bestFit = True
         sheet.auto_filter.ref = sheet.dimensions
         sheet.freeze_panes = 'A2'
     filter_book.save(file_name)
-
