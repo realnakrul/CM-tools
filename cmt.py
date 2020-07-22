@@ -2,7 +2,11 @@ from sys import argv
 import tools
 from openpyxl import Workbook
 from openpyxl import load_workbook
+from draw_network_graph import draw_topology
+import os
+from pprint import pprint
 
+os.environ["PATH"] += os.pathsep + r'C:\Program Files (x86)\Graphviz2.38\bin'
 
 ACTIONS = ['Enforce Engineer format and get summary', 'Enforce Technician format', 'Group by device']
 
@@ -57,6 +61,11 @@ def main():
                     dst_book = tools.add_to_sheet(dst_book, sheet.title + ' Sum', summary_list, 'summary')
                 elif action == 'Enforce Technician format':
                     clean_matrix_list = tools.technician_format(clean_matrix_list)
+                    topology = tools.get_topoly(clean_matrix_list)
+                    pprint(topology)
+                    '''topology = {('CR SW 01', 'MGMT01'): ('MGMT SW 01', 'E1/1'),
+                                ('CR SW 02', 'MGMT01'): ('MGMT SW 01', 'E1/2')}'''
+                    draw_topology(topology)
                     dst_book = tools.add_to_sheet(dst_book, sheet.title, clean_matrix_list, 'connectivity')
                 elif action == 'Group by device':
                     clean_matrix_list = tools.group_by_device(devices, clean_matrix_list)

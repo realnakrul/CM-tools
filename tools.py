@@ -415,3 +415,8 @@ def add_filters(file_name):
         sheet.auto_filter.ref = sheet.dimensions
         sheet.freeze_panes = 'A2'
     filter_book.save(file_name)
+
+
+def get_topoly(matrix):
+    result = {(line[0], line[1]): (line[2], line[3]) for line in matrix}
+    return result
