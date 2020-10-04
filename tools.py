@@ -28,6 +28,28 @@ def check_src_file(file):
     return result
 
 
+def sel_dst_file(file):
+    """
+    Checks if version number is encoded in file name and increases/adds version number
+    :param file: Destination file name
+    :return: Destination file name with updated version
+    """
+    dst_parts = file.split('.')
+    if '_v' in dst_parts[0]:
+        try:
+            dst_ver = int(dst_parts[1])
+            dst_ver += 1
+        except ValueError:
+            dst_ver = 1
+        except Exception as e:
+            print(type(e), e)
+        dst_parts[1] = str(dst_ver)
+    else:
+        dst_parts.insert(-2, 'v0.1')
+    dst_fname = '.'.join(dst_parts)
+    return dst_fname
+
+
 def check_dst_file(file):
     """
     Checks if destination file is not open and available for writing
@@ -50,15 +72,11 @@ def select_sheet(book):
     print('Available sheets: ')
     for ind, sheet in enumerate(book.sheetnames, 1):
         print(f'{ind}. {sheet}')
-    print(f'{len(book.sheetnames)+1}. ALL')
     correct = False
     while not correct:
         try:
-            sheet_ind = int(input(f'Select sheet (1 - {len(book.sheetnames) + 1}): '))
-            if sheet_ind == len(book.sheetnames)+1:
-                sheets = book.worksheets
-                correct = True
-            elif sheet_ind <= len(book.sheetnames)+1:
+            sheet_ind = int(input(f'Select sheet (1 - {len(book.sheetnames)}): '))
+            if sheet_ind <= len(book.sheetnames)+1:
                 sheets.append(book.worksheets[sheet_ind - 1])
                 correct = True
         except ValueError:
