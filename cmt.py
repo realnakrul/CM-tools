@@ -4,7 +4,16 @@ from openpyxl import Workbook
 from openpyxl import load_workbook
 
 
+LOGO = "     .     .\n" \
+       "   ',       :\n" \
+       "  `. `.    .:\t\t\t\t\t\t CABLING MATRIX TOOLS\n" \
+       "       `. :'\t\t\t\t\t\t\t\t v0.4\n" \
+       "     ,.:'`.\n" \
+       "   /        '"
+
+
 def main():
+    print(LOGO)
     if tools.check_src_file(argv[1]):
         src_file = argv[1]
         if len(argv) == 3:
